@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b19">
+  <meta name="description" content="5라운드 반응속도 테스트! 초록색이 되면 최대한 빠르게 누르세요.">
+  <title>반응속도 테스트 | NEON REFLEX</title>
+
+  <style>
+    /* 1. 디자인: CSS도 이 HTML 파일 안에 들어 있습니다. */
+    :root {
+      color-scheme: dark;
+      --bg: #080b19;
+      --surface: #10152a;
+      --line: rgba(153, 174, 255, .16);
+      --text: #f4f7ff;
+      --muted: #9faac5;
+      --cyan: #56e9ff;
+      --purple: #ad85ff;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 18% 0%, rgba(88, 67, 181, .24), transparent 37%),
+        radial-gradient(ellipse at 88% 86%, rgba(0, 159, 224, .12), transparent 33%),
+        var(--bg);
+      display: flex;
+      justify-content: center;
+      padding: 34px 18px 46px;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .25;
+      background-image: linear-gradient(rgba(143, 174, 242, .09) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(143, 174, 242, .09) 1px, transparent 1px);
+      background-size: 38px 38px;
+      -webkit-mask-image: linear-gradient(to bottom, black, transparent 90%);
+      mask-image: linear-gradient(to bottom, black, transparent 90%);
+    }
+    .app { position: relative; width: min(100%, 760px); z-index: 1; }
+    header { text-align: center; margin-bottom: 27px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 9px;
+      color: var(--cyan); font-size: 12px; font-weight: 900;
+      letter-spacing: .28em;
+    }
+    .eyebrow::before, .eyebrow::after {
+      content: ""; display: inline-block; width: 16px; height: 1px;
+      background: currentColor; opacity: .7;
+    }
+    h1 { margin: 13px 0 8px; font-size: clamp(30px, 6vw, 49px); letter-spacing: -.055em; line-height: 1.12; }
+    h1 span { color: var(--cyan); text-shadow: 0 0 32px rgba(86,233,255,.26); }
+    .subtitle { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .dashboard { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+    .stat {
+      min-width: 0; padding: 15px 16px; background: rgba(17, 23, 45, .88);
+      border: 1px solid var(--line); border-radius: 15px;
+    }
+    .stat-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+    .stat-value { margin-top: 6px; font-size: clamp(20px, 4vw, 27px); font-weight: 900; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .stat-value small { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .arena {
+      position: relative;
+      isolation: isolate;
+      min-height: clamp(300px, 43vw, 365px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 1px solid rgba(141, 166, 242, .25);
+      border-radius: 24px; text-align: center; overflow: hidden;
+      padding: 25px 20px;
+      user-select: none; -webkit-user-select: none;
+      touch-action: manipulation; cursor: default;
+      background: radial-gradient(circle at center, #202c54 0%, #11182e 74%);
+      box-shadow: inset 0 0 70px rgba(99, 120, 227, .09), 0 18px 60px rgba(0,0,0,.2);
+    }
+    .arena::before {
+      content: ""; position: absolute; inset: -2px; z-index: -1; opacity: .28;
+      background: repeating-linear-gradient(0deg, transparent 0, transparent 5px, rgba(255,255,255,.06) 6px);
+      pointer-events: none;
+    }
+    .arena[data-state="waiting"] {
+      background: radial-gradient(circle at 50% 42%, #bb304f 0%, #73172f 55%, #3c1428 100%);
+      box-shadow: inset 0 0 80px rgba(255,91,109,.16), 0 0 48px rgba(235,54,88,.11);
+      cursor: pointer;
+    }
+    .arena[data-state="ready"] {
+      background: radial-gradient(circle at 50% 42%, #45de9b 0%, #15885a 55%, #0b513e 100%);
+      box-shadow: inset 0 0 80px rgba(97,255,168,.16), 0 0 65px rgba(31,231,141,.22);
+      cursor: pointer;
+    }
+    .arena[data-state="result"] {
+      background: radial-gradient(circle at 50% 42%, #24426d 0%, #142544 65%, #10182f 100%);
+    }
+    .arena[data-state="finished"] {
+      background: radial-gradient(circle at 50% 42%, #443174 0%, #242044 65%, #11182f 100%);
+    }
+    .ring {
+      width: 102px; height: 102px; border: 2px solid rgba(255,255,255,.64);
+      border-radius: 50%; display: grid; place-items: center;
+      margin-bottom: 17px; position: relative;
+      box-shadow: 0 0 0 13px rgba(255,255,255,.07), inset 0 0 26px rgba(255,255,255,.07);
+    }
+    .ring::before, .ring::after { content: ""; position: absolute; border-radius: 50%; border: 1px solid rgba(255,255,255,.23); inset: -24px; }
+    .ring::after { inset: -38px; opacity: .4; }
+    .symbol { font-size: 40px; line-height: 1; font-weight: 900; }
+    .arena[data-state="waiting"] .ring { animation: breathe 1.15s ease-in-out infinite alternate; }
+    .arena[data-state="ready"] .ring { animation: pop .22s ease-out both; }
+    @keyframes breathe { from { transform: scale(.97); } to { transform: scale(1.07); } }
+    @keyframes pop { from { transform: scale(.85); } to { transform: scale(1); } }
+    .arena-title { margin: 10px 0 8px; font-size: clamp(26px, 5.5vw, 39px); font-weight: 900; letter-spacing: -.055em; }
+    .arena-desc { margin: 0; font-size: 14px; color: rgba(255,255,255,.84); line-height: 1.7; }
+    .arena-status { margin: 20px 0 0; font-size: 11px; font-weight: 900; letter-spacing: .2em; color: rgba(255,255,255,.7); }
+    .arena[data-state="ready"] .arena-title { color: #fff; }
+    .controls { display: flex; gap: 10px; margin-top: 14px; }
+    button {
+      min-height: 54px; appearance: none; border: 0; border-radius: 13px;
+      font: inherit; font-weight: 900; font-size: 15px; cursor: pointer;
+      transition: transform .15s, filter .15s, background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active { transform: scale(.98); }
+    button:focus-visible, .arena:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    .primary {
+      flex: 1; color: #081425; background: linear-gradient(105deg, #55e9ff, #8cb5ff);
+      box-shadow: 0 6px 24px rgba(86,233,255,.19);
+    }
+    .primary:hover { filter: brightness(1.07); }
+    .secondary { flex: 0 0 145px; background: #202842; color: #e6edff; border: 1px solid var(--line); }
+    [hidden] { display: none !important; }
+    .results { margin-top: 21px; padding: 19px; border: 1px solid var(--line); background: rgba(17,23,45,.76); border-radius: 17px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
+    .section-head h2 { margin: 0; font-size: 14px; letter-spacing: .04em; }
+    .section-head span { color: var(--muted); font-size: 12px; }
+    .rounds { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 9px; }
+    .round {
+      border: 1px solid rgba(154, 171, 224, .17); border-radius: 12px; background: #151b31;
+      text-align: center; min-width: 0; padding: 11px 4px;
+    }
+    .round .number { display: block; color: var(--muted); font-size: 11px; margin-bottom: 7px; }
+    .round .value { display: block; font-weight: 900; font-size: clamp(11px, 2.2vw, 17px); font-variant-numeric: tabular-nums; }
+    .round.good { background: rgba(54, 193, 170, .11); border-color: rgba(60, 243, 190, .42); }
+    .round.bad { background: rgba(241, 89, 116, .12); border-color: rgba(255, 111, 132, .45); }
+    .round.active { border-color: #81aaff; box-shadow: inset 0 0 0 1px rgba(129, 170, 255, .25); }
+    .round.good .value { color: #69f0c6; }
+    .round.bad .value { color: #ff91a6; }
+    .guide { text-align: center; color: var(--muted); font-size: 12px; line-height: 1.8; margin: 18px 8px 0; }
+    .guide strong { color: #d4defb; }
+    footer { text-align: center; font-size: 10px; color: #7785ae; letter-spacing: .18em; margin-top: 26px; }
+    @media (max-width: 510px) {
+      body { padding: 26px 12px 36px; }
+      header { margin-bottom: 22px; }
+      .subtitle { font-size: 12px; }
+      .stat { padding: 12px 10px; border-radius: 12px; }
+      .stat-label { font-size: 10px; letter-spacing: .05em; }
+      .arena { min-height: 340px; border-radius: 19px; }
+      .secondary { flex-basis: 112px; }
+      .results { padding: 14px 10px; }
+      .rounds { gap: 5px; }
+      .round { padding: 10px 2px; }
+      .round .number { font-size: 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="eyebrow">NEON REFLEX · ARCADE 01</div>
+      <h1>반응속도 <span>테스트</span></h1>
+      <p class="subtitle">빨간 화면이 초록색으로 변하는 순간, 최대한 빠르게 터치하세요!</p>
+    </header>
+
+    <section class="dashboard" aria-label="게임 통계">
+      <div class="stat"><div class="stat-label">ROUND</div><div class="stat-value"><span id="roundStat">0</span> <small>/ 5</small></div></div>
+      <div class="stat"><div class="stat-label">AVERAGE</div><div class="stat-value"><span id="averageStat">—</span> <small>ms</small></div></div>
+      <div class="stat"><div class="stat-label">BEST</div><div class="stat-value"><span id="bestStat">—</span> <small>ms</small></div></div>
+    </section>
+
+    <!-- 2. 게임 화면: 빨강일 때 누르면 실격, 초록일 때 누르면 기록됩니다. -->
+    <section id="arena" class="arena" data-state="idle" role="button" tabindex="0"
+             aria-label="반응속도 클릭 영역" aria-describedby="arenaDesc">
+      <div class="ring" aria-hidden="true"><span id="symbol" class="symbol">⚡</span></div>
+      <p id="arenaTitle" class="arena-title" aria-live="polite">준비됐나요?</p>
+      <p id="arenaDesc" class="arena-desc">5번의 도전으로 순발력을 측정해 보세요.</p>
+      <p id="arenaStatus" class="arena-status">READY TO PLAY</p>
+    </section>
+
+    <div class="controls">
+      <button id="mainButton" class="primary" type="button">⚡ 게임 시작</button>
+      <button id="restartButton" class="secondary" type="button" hidden>↻ 다시 시작</button>
+    </div>
+
+    <section class="results" aria-label="라운드별 결과">
+      <div class="section-head"><h2>ROUND RECORDS</h2><span id="completeCount">0 / 5 완료</span></div>
+      <div class="rounds" id="roundRecords"></div>
+    </section>
+
+    <p class="guide">
+      <strong>HOW TO PLAY</strong> &nbsp; 게임 시작 → 빨간색에서 2~5초 대기 → 초록색일 때 클릭!<br>
+      빨간색일 때 먼저 누르면 해당 라운드는 실패로 처리됩니다. (평균은 성공한 라운드만 계산)<br>
+      컴퓨터는 마우스 또는 키보드(게임 화면을 선택한 뒤 Space/Enter), 스마트폰은 터치로 플레이하세요.
+    </p>
+    <footer>NO DOWNLOAD · NO ADS · JUST REFLEX</footer>
+  </main>
+
+  <script>
+    // 3. 게임 동작: 별도 JavaScript 파일이나 설치가 필요 없습니다.
+    const TOTAL_ROUNDS = 5;
+    const arena = document.getElementById('arena');
+    const title = document.getElementById('arenaTitle');
+    const desc = document.getElementById('arenaDesc');
+    const statusText = document.getElementById('arenaStatus');
+    const symbol = document.getElementById('symbol');
+    const mainButton = document.getElementById('mainButton');
+    const restartButton = document.getElementById('restartButton');
+    const recordsEl = document.getElementById('roundRecords');
+    const roundStat = document.getElementById('roundStat');
+    const averageStat = document.getElementById('averageStat');
+    const bestStat = document.getElementById('bestStat');
+    const completeCount = document.getElementById('completeCount');
+
+    let state = 'idle';       // idle, waiting, ready, result, finished
+    let records = [];        // 성공: 밀리초 숫자, 너무 빠른 클릭: null
+    let greenAt = 0;         // 초록색으로 바꾼 시점
+    let waitTimer = null;    // 2~5초 랜덤 타이머
+    let frameId = null;      // 화면 전환 프레임
+
+    function setArena(nextState, heading, description, label, emoji) {
+      state = nextState;
+      arena.dataset.state = nextState;
+      title.textContent = heading;
+      desc.textContent = description;
+      statusText.textContent = label;
+      symbol.textContent = emoji;
+    }
+
+    function getSuccessfulTimes() {
+      return records.filter(value => typeof value === 'number');
+    }
+
+    function renderRecords() {
+      recordsEl.replaceChildren();
+      for (let i = 0; i < TOTAL_ROUNDS; i++) {
+        const box = document.createElement('div');
+        box.className = 'round';
+        let value = '—';
+        if (i < records.length) {
+          if (records[i] === null) {
+            box.classList.add('bad');
+            value = '실패';
+          } else {
+            box.classList.add('good');
+            value = records[i] + 'ms';
+          }
+        } else if (state === 'waiting' || state === 'ready') {
+          if (i === records.length) box.classList.add('active');
+        }
+        const num = document.createElement('span');
+        num.className = 'number';
+        num.textContent = 'ROUND ' + (i + 1);
+        const val = document.createElement('span');
+        val.className = 'value';
+        val.textContent = value;
+        box.append(num, val);
+        recordsEl.appendChild(box);
+      }
+      const successes = getSuccessfulTimes();
+      const average = successes.length
+        ? Math.round(successes.reduce((sum, time) => sum + time, 0) / successes.length)
+        : null;
+      const best = successes.length ? Math.min(...successes) : null;
+      roundStat.textContent = state === 'idle' ? '0' : String(Math.min(records.length + (state === 'waiting' || state === 'ready' ? 1 : 0), TOTAL_ROUNDS));
+      averageStat.textContent = average === null ? '—' : average;
+      bestStat.textContent = best === null ? '—' : best;
+      completeCount.textContent = records.length + ' / ' + TOTAL_ROUNDS + ' 완료';
+    }
+
+    function clearPending() {
+      clearTimeout(waitTimer);
+      waitTimer = null;
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = null;
+    }
+
+    function startRound() {
+      if (records.length >= TOTAL_ROUNDS) return;
+      clearPending();
+      mainButton.hidden = true;
+      setArena('waiting', '아직 누르지 마세요!', '초록색으로 바뀔 때까지 기다리세요.', 'WAIT FOR GREEN', '✋');
+      renderRecords();
+      const delay = 2000 + Math.random() * 3000;  // 2,000~5,000ms
+      waitTimer = setTimeout(() => {
+        waitTimer = null;
+        frameId = requestAnimationFrame(() => {
+          frameId = null;
+          setArena('ready', '지금 클릭!', '최대한 빠르게 화면을 눌러주세요!', 'TAP NOW!', '⚡');
+          greenAt = performance.now();
+          renderRecords();
+        });
+      }, delay);
+    }
+
+    function startGame() {
+      clearPending();
+      records = [];
+      restartButton.hidden = false;
+      startRound();
+    }
+
+    function onArenaPress() {
+      if (state === 'waiting') {
+        // 먼저 누르면 해당 라운드 실패. 타이머를 반드시 취소합니다.
+        clearPending();
+        records.push(null);
+        finishRound(false, null);
+      } else if (state === 'ready') {
+        const elapsed = Math.max(0, Math.round(performance.now() - greenAt));
+        records.push(elapsed);
+        finishRound(true, elapsed);
+      }
+    }
+
+    function finishRound(success, elapsed) {
+      if (records.length === TOTAL_ROUNDS) {
+        showFinal();
+      } else {
+        if (success) {
+          setArena('result', elapsed + ' ms', '좋아요! 다음 라운드도 집중하세요.', 'REACTION RECORDED', '✓');
+        } else {
+          setArena('result', '너무 빨랐어요!', '빨간색일 때 눌렀어요. 이번 라운드는 실패!', 'FALSE START', '!');
+        }
+        mainButton.textContent = '다음 라운드 →';
+        mainButton.hidden = false;
+      }
+      renderRecords();
+    }
+
+    function calculateGrade(average, mistakes) {
+      // 기초 등급: 평균 반응시간 기준. 실패 1회당 한 등급씩 내려갑니다.
+      if (average === null) return { letter: 'F', name: '다시 도전!', detail: '성공한 라운드가 없어요.' };
+      const letters = ['S', 'A', 'B', 'C', 'D'];
+      const names = ['번개 같은 반응!', '엄청난 순발력!', '매우 좋은 반응!', '좋은 출발이에요!', '연습하면 더 빨라져요!'];
+      let index = average < 200 ? 0 : average < 250 ? 1 : average < 320 ? 2 : average < 450 ? 3 : 4;
+      index = Math.min(4, index + mistakes);
+      return { letter: letters[index], name: names[index], detail: mistakes ? '조기 클릭 ' + mistakes + '회로 등급이 조정됐어요.' : '조기 클릭 없이 완료했어요!' };
+    }
+
+    function showFinal() {
+      const successTimes = getSuccessfulTimes();
+      const mistakes = TOTAL_ROUNDS - successTimes.length;
+      const average = successTimes.length
+        ? Math.round(successTimes.reduce((sum, ms) => sum + ms, 0) / successTimes.length)
+        : null;
+      const grade = calculateGrade(average, mistakes);
+      setArena(
+        'finished',
+        '최종 등급 ' + grade.letter,
+        '평균 ' + (average === null ? '기록 없음' : average + ' ms') + ' · 성공 ' + successTimes.length + '/5\n' + grade.name,
+        grade.detail,
+        '★'
+      );
+      // 줄바꿈은 CSS에서 처리하지 않으므로 읽기 편하게 가운데점으로 대체합니다.
+      desc.textContent = '평균 ' + (average === null ? '기록 없음' : average + ' ms') + ' · 성공 ' + successTimes.length + '/5 · ' + grade.name;
+      mainButton.textContent = '⚡ 다시 도전하기';
+      mainButton.hidden = false;
+      renderRecords();
+    }
+
+    mainButton.addEventListener('click', () => {
+      if (state === 'idle' || state === 'finished') startGame();
+      else if (state === 'result') startRound();
+    });
+    restartButton.addEventListener('click', startGame);
+
+    // pointerdown: 마우스와 모바일 터치를 모두 지원합니다.
+    arena.addEventListener('pointerdown', onArenaPress);
+    // 키보드 사용자는 게임 화면에 포커스를 둔 뒤 Space/Enter로 누릅니다.
+    arena.addEventListener('keydown', event => {
+      if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        onArenaPress();
+      }
+    });
+    renderRecords();
+  </script>
+</body>
+</html>
